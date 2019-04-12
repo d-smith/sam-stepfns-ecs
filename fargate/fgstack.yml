@@ -1,0 +1,28 @@
+Description: >
+  This stack deploys two ECS services hosted in a 
+  fargate cluster to perform the two activities
+  associated with this project's step function process.
+
+  Before deploying this stack, you must install the step
+  function state machine, and push the worker images to
+  your account's ECR in the region you are deploying in.
+
+Parameters:
+  BucketRoot:
+      Type: String
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ['/', [!Ref BucketRoot, vpc.yml]]
+
+  Fargate:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: VPC
+    Properties:
+      TemplateURL: !Join ['/', [!Ref BucketRoot, fargate.yml]]
+      Parameters:
+        SecurityGroup: !GetAtt VPC.Outputs.DefaultSecurityGroup
+        PrivateSubnet1: !GetAtt VPC.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt VPC.Outputs.PrivateSubnet2

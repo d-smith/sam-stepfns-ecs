@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Create a fargate cluster, step function tasks and service that runs containers
+  assigned private ip addresses in private subnets.
+
+Parameters:
+  PrivateSubnet1:
+    Type: String
+  
+  PrivateSubnet2:
+    Type: String
+
+  SecurityGroup:
+    Type: String
+
+
+Resources:
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+
+  TaskRolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - states:GetActivityTask
+          - states:SendTaskFailure
+          - states:SendTaskSuccess
+          Resource:
+            - 'Fn::Join':
+              - ''
+              -
+                - "arn:aws:states:"
+                - Ref: "AWS::Region"
+                - ":"
+                - Ref: "AWS::AccountId"
+                - ":activity:actone-sm1-dev"
+            - 'Fn::Join':
+              - ''
+              -
+                - "arn:aws:states:"
+                - Ref: "AWS::Region"
+                - ":"
+                - Ref: "AWS::AccountId"
+                - ":activity:acttwo-sm1-dev"            
+      Roles:
+      - Ref: TaskRole
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+
+  TaskExecutionRolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - ecr:GetAuthorizationToken
+          - ecr:BatchCheckLayerAvailability
+          - ecr:GetDownloadUrlForLayer
+          - ecr:BatchGetImage
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Resource: '*'
+      Roles:
+      - Ref: TaskExecutionRole
+
+  FGCluster:
+    Type: AWS::ECS::Cluster
+
+  CloudwatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['-', [ECSLogGroup, !Ref 'AWS::StackName']]
+      RetentionInDays: 14
+
+  WorkerTasks:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        -
+          Name: stepOneWorker
+          Image: !Join [ '', [Ref: 'AWS::AccountId', '.dkr.ecr.us-east-1.amazonaws.com/stepz/sm1-step1-worker' ]]
+          Essential: True
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudwatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: sm1StepOne
+          Environment:
+            - Name: 'ACTONE_ARN'
+              Value: !Join ['', ['arn:aws:states:', Ref: 'AWS::Region',':', Ref: 'AWS::AccountId', ':activity:actone-sm1-dev']]
+        -
+          Name: stepTwoWorker
+          Image: !Join [ '', [Ref: 'AWS::AccountId', '.dkr.ecr.us-east-1.amazonaws.com/stepz/sm1-step2-worker' ]]
+          Essential: True
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudwatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: sm1StepTwo
+          Environment:
+            - Name: 'ACTTWO_ARN'
+              Value: !Join ['', ['arn:aws:states:', Ref: 'AWS::Region',':', Ref: 'AWS::AccountId', ':activity:acttwo-sm1-dev']]
+      NetworkMode: awsvpc
+      ExecutionRoleArn: 
+        Ref: TaskExecutionRole
+      TaskRoleArn: 
+        Ref: TaskRole
+      Family: "sm1-stepone"
+      Cpu: 256
+      Memory: 512
+      
+  WorkService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref FGCluster
+      DesiredCount: '1'
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: SecurityGroup
+          Subnets:
+            - !Ref PrivateSubnet1
+            - !Ref PrivateSubnet2
+      TaskDefinition: !Ref 'WorkerTasks'
+
