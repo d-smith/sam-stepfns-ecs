@@ -16,8 +16,8 @@ Container push:
 
 ```console
 `aws ecr get-login --no-include-email`
-docker tag stepz/sm1-step1-worker nnnn.dkr.ecr.us-east-1.amazonaws.com/stepz/sm1-step1-worker
-docker push nnnn.dkr.ecr.us-east-1.amazonaws.com/stepz/sm1-step1-worker
+docker tag stepfn-task nnnn.dkr.ecr.us-east-1.amazonaws.com/stepfn-task
+docker push nnnn.dkr.ecr.us-east-1.amazonaws.com/stepfn-task
 ```
 
 ## Installation
@@ -64,54 +64,3 @@ aws ecs describe-tasks --tasks arn:aws:ecs:us-east-1:nnnn:task/53b6c181-bb59-427
 ```
 
 
-## Misc
-
-Role:
-
-```console
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ecs:RunTask",
-                "ecs:StopTask",
-                "ecs:DescribeTasks"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "events:PutTargets",
-                "events:PutRule",
-                "events:DescribeRule"
-            ],
-            "Resource": [
-               "arn:aws:events:[[region]]:
-[[accountId]]:rule/StepFunctionsGetEventsForECSTaskRule"
-            ]
-        }
-    ]
-}
-```
-
-State machine 
-
-```console
-{
- "StartAt": "Run an ECS Task and wait for it to complete",
- "States": {
-   "Run an ECS Task and wait for it to complete": {
-     "Type": "Task",
-     "Resource": "arn:aws:states:::ecs:runTask.sync",
-     "Parameters": {
-                "Cluster": "arn:aws:ecs:us-east-1:427848627088:cluster/far-step-Fargate-1UFKEO406KYW6-FGCluster-1JRWDCKEPZA1L",
-                "TaskDefinition": "arn:aws:ecs:us-east-1:427848627088:task-definition/step-fn-tasks:1"
-            },
-     "End": true
-    }
-  }
-}
-```
