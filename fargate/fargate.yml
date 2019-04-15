@@ -138,3 +138,18 @@ Outputs:
     Value: !Ref WorkerTask
     Export:
       Name: StepFnTask-WorkerTask
+
+  TaskSecurityGroup:
+    Value: !Ref SecurityGroup
+    Export:
+      Name: StepFnTask-SecurityGroup
+
+  TaskSubnet1:
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: StepFnTask-Subnet1
+
+  TaskSubnet2:
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: StepFnTask-Subnet2

@@ -44,8 +44,8 @@ Resources:
                               "LaunchType": "FARGATE",
                               "NetworkConfiguration": {
                                 "AwsvpcConfiguration": {
-                                  "SecurityGroups": ["sg-0c6ffdc6652caf6ab"],
-                                  "Subnets":["subnet-08405970c9799b2b8","subnet-09d36ecc61d529931"]
+                                  "SecurityGroups": ["${SecurityGroup}"],
+                                  "Subnets":["${Subnet1}","${Subnet2}"]
                                 }
                               }
 
@@ -54,7 +54,7 @@ Resources:
                   }
                 }
               }
-          - {Cluster: !ImportValue 'StepFnTask-ClusterArn', Task: !ImportValue 'StepFnTask-WorkerTask'}
+          - {Cluster: !ImportValue 'StepFnTask-ClusterArn', Task: !ImportValue 'StepFnTask-WorkerTask', SecurityGroup: !ImportValue 'StepFnTask-SecurityGroup',  Subnet1: !ImportValue 'StepFnTask-Subnet1',  Subnet2: !ImportValue 'StepFnTask-Subnet2'}
       RoleArn: !GetAtt StateMachineRole.Arn
 
   StateMachineRole:
